@@ -1,0 +1,1 @@
+export { AvailabilityBadge } from '../ui/AvailabilityBadge';

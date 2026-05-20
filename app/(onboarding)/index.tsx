@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ImageBackground, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -19,9 +19,8 @@ import { FontFamily, FontSize, LetterSpacing } from '../../constants/typography'
 import { Radius, Spacing } from '../../constants/spacing';
 import { Strings } from '../../constants/strings';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const LANDING_LOGO = require('../../assets/brand-logo-live.png');
-const LANDING_BG = require('../../assets/landing-bg.jpg');
+const LANDING_BG = require('../../assets/3d-render-contemporary-living-space.jpg');
 
 // ─── Floating particle config ────────────────────────────────────────────────
 const PARTICLES: { x: number; size: number; delay: number; dur: number; alpha: number }[] = [
@@ -34,7 +33,15 @@ const PARTICLES: { x: number; size: number; delay: number; dur: number; alpha: n
   { x: 0.90, size: 4,  delay: 200,  dur: 2900, alpha: 0.15 },
 ];
 
-function Particle({ cfg }: { cfg: typeof PARTICLES[0] }) {
+function Particle({
+  cfg,
+  screenWidth,
+  screenHeight,
+}: {
+  cfg: typeof PARTICLES[0];
+  screenWidth: number;
+  screenHeight: number;
+}) {
   const y       = useSharedValue(0);
   const opacity = useSharedValue(0);
 
@@ -55,12 +62,12 @@ function Particle({ cfg }: { cfg: typeof PARTICLES[0] }) {
     y.value = withDelay(
       cfg.delay,
       withRepeat(
-        withTiming(-SCREEN_HEIGHT * 0.40, { duration: cfg.dur, easing: Easing.linear }),
+        withTiming(-screenHeight * 0.40, { duration: cfg.dur, easing: Easing.linear }),
         -1,
         false,
       ),
     );
-  }, []);
+  }, [cfg.alpha, cfg.delay, cfg.dur, screenHeight]);
 
   const style = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -71,7 +78,13 @@ function Particle({ cfg }: { cfg: typeof PARTICLES[0] }) {
     <Animated.View
       style={[
         styles.particle,
-        { left: SCREEN_WIDTH * cfg.x, width: cfg.size, height: cfg.size, borderRadius: cfg.size / 2 },
+        {
+          left: screenWidth * cfg.x,
+          bottom: screenHeight * 0.08,
+          width: cfg.size,
+          height: cfg.size,
+          borderRadius: cfg.size / 2,
+        },
         style,
       ]}
     />
@@ -81,6 +94,12 @@ function Particle({ cfg }: { cfg: typeof PARTICLES[0] }) {
 // ─── Main screen ─────────────────────────────────────────────────────────────
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isSmallPhone = screenWidth < 380;
+  const isShortScreen = screenHeight < 760;
+  const isTablet = screenWidth >= 768;
+  const logoSize = isTablet ? 240 : isSmallPhone ? 176 : 216;
+  const ringSize = isTablet ? 300 : isSmallPhone ? 232 : 280;
 
   // Logo
   const logoScale   = useSharedValue(0.75);
@@ -111,7 +130,7 @@ export default function WelcomeScreen() {
     const ease = Easing.out(Easing.cubic);
 
     // Logo entrance — dramatic spring overshoot
-    logoScale.value   = withSpring(1, { damping: 9, stiffness: 72, restSpeedThreshold: 0.01 });
+    logoScale.value   = withSpring(1, { damping: 9, stiffness: 72 });
     logoOpacity.value = withTiming(1, { duration: 600, easing: ease });
     logoY.value       = withTiming(0, { duration: 700, easing: ease });
 
@@ -158,12 +177,12 @@ export default function WelcomeScreen() {
     shimmerX.value = withDelay(
       1400,
       withRepeat(
-        withTiming(SCREEN_WIDTH + 120, { duration: 2200, easing: Easing.linear }),
+        withTiming(screenWidth + 120, { duration: 2200, easing: Easing.linear }),
         -1,
         false,
       ),
     );
-  }, []);
+  }, [screenWidth]);
 
   const logoStyle  = useAnimatedStyle(() => ({
     transform: [{ translateY: logoY.value + logoFloat.value }, { scale: logoScale.value }],
@@ -190,16 +209,21 @@ export default function WelcomeScreen() {
   }));
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={LANDING_BG}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-      />
+    <ImageBackground
+      source={LANDING_BG}
+      style={styles.container}
+      resizeMode="cover"
+      imageStyle={{
+        width: screenWidth + 8,
+        height: screenHeight + 8,
+        marginLeft: -4,
+        marginTop: -4,
+      }}
+    >
 
       {/* Background gradient */}
       <LinearGradient
-        colors={['rgba(255,255,255,0.90)', 'rgba(248,250,248,0.84)', 'rgba(255,255,255,0.90)']}
+        colors={['rgba(6,18,13,0.44)', 'rgba(10,24,17,0.20)', 'rgba(6,18,13,0.48)']}
         style={StyleSheet.absoluteFill}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
@@ -207,41 +231,78 @@ export default function WelcomeScreen() {
 
       {/* Top green radial bloom */}
       <LinearGradient
-        colors={['rgba(15,106,61,0.09)', 'transparent']}
-        style={styles.radialGlow}
+        colors={['rgba(15,106,61,0.18)', 'transparent']}
+        style={[styles.radialGlow, { height: screenHeight * 0.52 }]}
         start={{ x: 0.5, y: 0 }}
         end={{ x: 0.5, y: 1 }}
       />
 
       {/* Ambient orbs */}
-      <View style={[styles.orb, styles.orbTopRight]} />
-      <View style={[styles.orb, styles.orbBottomLeft]} />
+      <View
+        style={[
+          styles.orb,
+          {
+            width: screenWidth * 0.75,
+            height: screenWidth * 0.75,
+            backgroundColor: Colors.emeraldMuted,
+            top: -screenWidth * 0.22,
+            right: -screenWidth * 0.28,
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.orb,
+          {
+            width: screenWidth * 0.55,
+            height: screenWidth * 0.55,
+            backgroundColor: Colors.goldMuted,
+            bottom: -screenWidth * 0.15,
+            left: -screenWidth * 0.2,
+          },
+        ]}
+      />
 
       {/* Floating particles */}
       {PARTICLES.map((p, i) => (
-        <Particle key={i} cfg={p} />
+        <Particle key={i} cfg={p} screenWidth={screenWidth} screenHeight={screenHeight} />
       ))}
 
       <SafeAreaView style={styles.safe}>
-        <View style={styles.content}>
+        <View
+          style={[
+            styles.content,
+            {
+              paddingHorizontal: isSmallPhone ? Spacing.lg : Spacing.xl,
+              paddingTop: isShortScreen ? screenHeight * 0.05 : screenHeight * 0.09,
+              paddingBottom: isSmallPhone ? Spacing.xl : Spacing['2xl'],
+            },
+          ]}
+        >
 
           {/* ── Logo section ── */}
           <View style={styles.logoSection}>
             {/* Pulsing glow ring */}
-            <Animated.View style={[styles.logoRing, ringStyle]} />
+            <Animated.View
+              style={[
+                styles.logoRing,
+                { width: ringSize, height: ringSize, borderRadius: ringSize / 2, top: -18 },
+                ringStyle,
+              ]}
+            />
 
             <Animated.View style={logoStyle}>
               <Image
                 source={LANDING_LOGO}
-                style={styles.logoImage}
+                style={[styles.logoImage, { width: logoSize, height: logoSize }]}
                 resizeMode="contain"
                 accessibilityLabel="Dream House logo"
               />
             </Animated.View>
 
             <Animated.View style={[styles.brandBlock, brandStyle]}>
-              <Text style={styles.brandName}>Dream House</Text>
-              <Text style={styles.brandTagline}>
+              <Text style={[styles.brandName, isSmallPhone && styles.brandNameCompact]}>Dream House</Text>
+              <Text style={[styles.brandTagline, isSmallPhone && styles.brandTaglineCompact]}>
                 {Strings.app.tagline.toUpperCase()}
               </Text>
               <View style={styles.dividerRow}>
@@ -253,17 +314,17 @@ export default function WelcomeScreen() {
           </View>
 
           {/* ── Stats badge ── */}
-          <Animated.View style={[styles.statsRow, badgeStyle]}>
+          <Animated.View style={[styles.statsRow, isSmallPhone && styles.statsRowCompact, badgeStyle]}>
             <View style={styles.statChip}>
               <Ionicons name="home" size={12} color={Colors.primaryColor} />
               <Text style={styles.statText}>5,000+ Homes</Text>
             </View>
-            <View style={styles.statSep} />
+            <View style={[styles.statSep, isSmallPhone && styles.statSepHidden]} />
             <View style={styles.statChip}>
               <Ionicons name="people" size={12} color={Colors.gold400} />
               <Text style={styles.statText}>12k+ Happy Clients</Text>
             </View>
-            <View style={styles.statSep} />
+            <View style={[styles.statSep, isSmallPhone && styles.statSepHidden]} />
             <View style={styles.statChip}>
               <Ionicons name="location" size={12} color={Colors.primaryColor} />
               <Text style={styles.statText}>Zimbabwe</Text>
@@ -271,7 +332,7 @@ export default function WelcomeScreen() {
           </Animated.View>
 
           {/* ── CTA section ── */}
-          <Animated.View style={[styles.ctaContainer, ctaStyle]}>
+          <Animated.View style={[styles.ctaContainer, isTablet && styles.ctaContainerTablet, ctaStyle]}>
             <TouchableOpacity
               style={styles.ctaBtn}
               onPress={() => router.push('/(onboarding)/role-select')}
@@ -310,34 +371,34 @@ export default function WelcomeScreen() {
               activeOpacity={0.7}
               style={styles.signInRow}
             >
-              <Text style={styles.signInText}>
+              <Text style={[styles.signInText, isSmallPhone && styles.signInTextCompact]}>
                 Already have an account?{'  '}
                 <Text style={styles.signInHighlight}>Sign In</Text>
               </Text>
             </TouchableOpacity>
 
-            <Text style={styles.disclaimer}>
+            <Text style={[styles.disclaimer, isSmallPhone && styles.disclaimerCompact]}>
               By continuing you agree to our Terms &amp; Privacy Policy
             </Text>
           </Animated.View>
 
         </View>
       </SafeAreaView>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#000000',
+    overflow: 'hidden',
   },
   radialGlow: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: SCREEN_HEIGHT * 0.52,
   },
   safe: {
     flex: 1,
@@ -346,27 +407,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xl,
-    paddingTop: SCREEN_HEIGHT * 0.09,
-    paddingBottom: Spacing['2xl'],
   },
 
   // ── Logo ──
   logoSection: {
     alignItems: 'center',
     gap: Spacing.base,
+    backgroundColor: 'rgba(6, 18, 13, 0.30)',
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.base,
   },
   logoRing: {
     position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
     backgroundColor: Colors.emeraldMuted,
-    top: -20,
   },
   logoImage: {
-    width: 240,
-    height: 240,
+    width: 216,
+    height: 216,
   },
   brandBlock: {
     alignItems: 'center',
@@ -375,14 +435,26 @@ const styles = StyleSheet.create({
   brandName: {
     fontFamily: FontFamily.displayBold,
     fontSize: FontSize['2xl'],
-    color: Colors.textPrimary,
+    color: Colors.textInverse,
     letterSpacing: LetterSpacing.tighter,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
+  },
+  brandNameCompact: {
+    fontSize: FontSize.xl,
   },
   brandTagline: {
     fontFamily: FontFamily.bodyLight,
     fontSize: FontSize.xs,
-    color: Colors.textMuted,
+    color: 'rgba(244, 251, 247, 0.88)',
     letterSpacing: LetterSpacing.wider,
+    textShadowColor: 'rgba(0,0,0,0.28)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
+  },
+  brandTaglineCompact: {
+    fontSize: FontSize.xs - 1,
   },
   dividerRow: {
     flexDirection: 'row',
@@ -393,27 +465,33 @@ const styles = StyleSheet.create({
   dividerLine: {
     width: 32,
     height: 1,
-    backgroundColor: Colors.borderDefault,
+    backgroundColor: 'rgba(255,255,255,0.42)',
   },
   dividerDot: {
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: Colors.primaryColor,
+    backgroundColor: '#A8FFD0',
   },
 
   // ── Stats ──
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-evenly',
+    justifyContent: 'center',
     width: '100%',
-    backgroundColor: Colors.backgroundAlt,
+    backgroundColor: 'rgba(6, 18, 13, 0.62)',
     borderRadius: Radius.full,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.borderSubtle,
+    borderColor: 'rgba(255,255,255,0.20)',
+    gap: 10,
+  },
+  statsRowCompact: {
+    flexWrap: 'wrap',
+    borderRadius: Radius.xl,
+    rowGap: 8,
   },
   statChip: {
     flexDirection: 'row',
@@ -425,14 +503,20 @@ const styles = StyleSheet.create({
   statText: {
     fontFamily: FontFamily.bodySemiBold,
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
+    color: '#F2FBF6',
     flexShrink: 1,
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   statSep: {
     width: 1,
     height: 14,
-    backgroundColor: Colors.borderDefault,
+    backgroundColor: 'rgba(255,255,255,0.34)',
     flexShrink: 0,
+  },
+  statSepHidden: {
+    display: 'none',
   },
 
   // ── CTA ──
@@ -440,6 +524,9 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: Spacing.base,
     alignItems: 'center',
+  },
+  ctaContainerTablet: {
+    maxWidth: 460,
   },
   ctaBtn: {
     width: '100%',
@@ -484,18 +571,32 @@ const styles = StyleSheet.create({
   signInText: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.sm,
-    color: Colors.textMuted,
+    color: 'rgba(244, 251, 247, 0.92)',
+    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
+  },
+  signInTextCompact: {
+    fontSize: FontSize.xs,
+    textAlign: 'center',
   },
   signInHighlight: {
     fontFamily: FontFamily.bodySemiBold,
-    color: Colors.primaryColor,
+    color: '#A8FFD0',
   },
   disclaimer: {
     fontFamily: FontFamily.body,
     fontSize: FontSize.xs,
-    color: Colors.textDisabled,
+    color: 'rgba(244, 251, 247, 0.82)',
     textAlign: 'center',
     lineHeight: 18,
+    textShadowColor: 'rgba(0,0,0,0.22)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  disclaimerCompact: {
+    lineHeight: 16,
+    paddingHorizontal: Spacing.sm,
   },
 
   // ── Orbs ──
@@ -504,25 +605,10 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     opacity: 0.30,
   },
-  orbTopRight: {
-    width: SCREEN_WIDTH * 0.75,
-    height: SCREEN_WIDTH * 0.75,
-    backgroundColor: Colors.emeraldMuted,
-    top: -SCREEN_WIDTH * 0.22,
-    right: -SCREEN_WIDTH * 0.28,
-  },
-  orbBottomLeft: {
-    width: SCREEN_WIDTH * 0.55,
-    height: SCREEN_WIDTH * 0.55,
-    backgroundColor: Colors.goldMuted,
-    bottom: -SCREEN_WIDTH * 0.15,
-    left: -SCREEN_WIDTH * 0.20,
-  },
 
   // ── Particles ──
   particle: {
     position: 'absolute',
-    bottom: SCREEN_HEIGHT * 0.08,
     backgroundColor: Colors.primaryColor,
   },
 });

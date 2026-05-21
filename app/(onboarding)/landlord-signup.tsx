@@ -137,7 +137,7 @@ const si = StyleSheet.create({
 
 export default function LandlordSignupScreen() {
   const router = useRouter();
-  const { login, setRole, setOnboardingComplete } = useAuthStore();
+  const { login, setRole, setOnboardingComplete, register } = useAuthStore();
   const [currentStep, setCurrentStep] = useState(0);
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -185,12 +185,15 @@ export default function LandlordSignupScreen() {
       if (!agreedToTerms) return;
       setSubmitting(true);
       const data = step1.getValues();
-      await new Promise<void>((resolve) => setTimeout(resolve, 800));
-      login(data.fullName, data.email);
-      setRole('landlord');
-      setOnboardingComplete();
-      setSubmitting(false);
-      router.replace('/landlord/verification');
+      try {
+        await register(data.fullName, data.email, data.password, 'landlord', data.phone);
+        await setOnboardingComplete();
+        setSubmitting(false);
+        router.replace('/landlord/verification');
+      } catch (err) {
+        console.error('Registration failed', err);
+        setSubmitting(false);
+      }
     }
   };
 

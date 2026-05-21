@@ -73,11 +73,9 @@ export default function RootLayout() {
         <Stack.Screen name="modals/filter-sheet" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="landlord/dashboard" options={{ headerShown: false }} />
         <Stack.Screen name="landlord/new-listing" options={{ headerShown: false }} />
-        <Stack.Screen name="landlord/verification" options={{ headerShown: false }} />
         <Stack.Screen name="notifications/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="help/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="about/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
-        <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
     </GestureHandlerRootView>
   );

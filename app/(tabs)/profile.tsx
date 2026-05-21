@@ -156,6 +156,23 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
             </TouchableOpacity>
           ))}
+          
+          {/* Logout Button */}
+          {!isGuest && (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={async () => {
+                await useAuthStore.getState().logout();
+                router.replace('/(onboarding)/sign-in');
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.menuIcon, { backgroundColor: 'rgba(220,38,38,0.1)', borderColor: 'rgba(220,38,38,0.2)' }]}>
+                <Ionicons name="log-out-outline" size={20} color={Colors.error} />
+              </View>
+              <Text style={[styles.menuLabel, { color: Colors.error }]}>Log Out</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={{ height: 100 }} />

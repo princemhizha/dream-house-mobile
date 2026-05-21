@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserRole, VerificationStatus } from '../types';
-import { api, setTokens, clearTokens, getAccessToken } from '../services/api';
+import { api, setTokens, clearTokens, getAccessToken, getRefreshToken } from '../services/api';
 import { getVerificationStatus, submitVerification, uploadIDImage } from '../services/verificationService';
 
 interface UserProfile {
@@ -175,6 +175,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   logout: async () => {
+    try {
+      const refresh = await getRefreshToken();
+      if (refresh) {
+        await api.post('/auth/logout/', { refresh });
+      }
+    } catch { /* ignore logout failure, proceed to clear local */ }
+    
     await clearTokens();
     AsyncStorage.multiRemove(Object.values(STORAGE_KEYS)).catch(() => null);
     set({

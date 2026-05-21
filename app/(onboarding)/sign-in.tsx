@@ -26,7 +26,7 @@ interface FormData {
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { login, setOnboardingComplete } = useAuthStore();
+  const { loginWithCredentials, setOnboardingComplete } = useAuthStore();
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -44,11 +44,14 @@ export default function SignInScreen() {
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
     setAuthError(null);
-    await new Promise<void>((resolve) => setTimeout(resolve, 800));
-    login(data.email.split('@')[0], data.email);
-    setOnboardingComplete();
-    setSubmitting(false);
-    router.replace('/(tabs)');
+    try {
+      await loginWithCredentials(data.email, data.password);
+      setSubmitting(false);
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      setAuthError(err?.data?.detail || err?.message || 'Invalid email or password');
+      setSubmitting(false);
+    }
   };
 
   return (

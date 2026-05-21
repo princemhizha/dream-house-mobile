@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { getPropertyById, mockProperties } from '../../data/mockProperties';
 import { PropertyCarousel } from '../../components/property/PropertyCarousel';
 import { PropertyCard } from '../../components/property/PropertyCard';
 import { AvailabilityBadge } from '../../components/ui/AvailabilityBadge';
@@ -25,6 +24,7 @@ import { Strings } from '../../constants/strings';
 import { useSavedStore } from '../../store/useSavedStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePropertyStore } from '../../store/usePropertyStore';
+import { Property } from '../../types';
 
 const AMENITY_ICONS: Record<string, string> = {
   wifi: 'wifi',
@@ -63,11 +63,23 @@ export default function PropertyDetailScreen() {
   const router = useRouter();
   const { isSaved, toggleSave } = useSavedStore();
   const { isSubscribed } = useAuthStore();
+  const getPropertyById = usePropertyStore((s) => s.getPropertyById);
   const allProperties = usePropertyStore((s) => s.allProperties);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const property = allProperties.find((item) => item.id === (id ?? '')) ?? getPropertyById(id ?? '');
-  const whatsappPhone = property?.landlord.whatsapp.replace(/\D/g, '') ?? '';
+  React.useEffect(() => {
+    const loadProperty = async () => {
+      setLoading(true);
+      const prop = await getPropertyById(id ?? '');
+      setProperty(prop);
+      setLoading(false);
+    };
+    loadProperty();
+  }, [id, getPropertyById]);
+
+  const whatsappPhone = property?.landlord.whatsapp?.replace(/\D/g, '') ?? '';
   const phoneNumber = property?.landlord.phone ?? '';
   const emailAddress = property?.landlord.email ?? '';
 
@@ -107,6 +119,16 @@ export default function PropertyDetailScreen() {
     }).catch(() => null);
   }, [property]);
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.notFound}>
+          <Text style={styles.notFoundText}>Loading property...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (!property) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -121,7 +143,7 @@ export default function PropertyDetailScreen() {
   }
 
   const saved = isSaved(property.id);
-  const similar = mockProperties
+  const similar = allProperties
     .filter((p) => p.id !== property.id && p.suburb === property.suburb)
     .slice(0, 4);
 

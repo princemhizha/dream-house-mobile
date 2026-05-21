@@ -1,78 +1,56 @@
-import { sendVerificationApproved, sendVerificationRejected } from './notificationService';
-import { getAllVerificationRecords, getVerificationStatus, upsertVerificationRecord } from './verificationService';
+import { api } from './api';
 import { VerificationRecord, VerificationStatus } from '../types';
-
-export async function getPendingVerifications(): Promise<VerificationRecord[]> {
-  const records = await getAllVerificationRecords();
-  return records.filter((r) => r.status === 'pending');
-}
-
-export async function getAllVerifications(
-  filter?: VerificationStatus
-): Promise<VerificationRecord[]> {
-  const records = await getAllVerificationRecords();
-  if (!filter) return records;
-  return records.filter((r) => r.status === filter);
-}
-
-export async function getVerificationRecord(
-  landlordId: string
-): Promise<VerificationRecord | null> {
-  return getVerificationStatus(landlordId);
-}
-
-export async function approveVerification(
-  landlordId: string,
-  adminId: string
-): Promise<void> {
-  const current = await getVerificationStatus(landlordId);
-  if (!current) return;
-
-  await upsertVerificationRecord({
-    ...current,
-    status: 'verified',
-    reviewedAt: new Date().toISOString(),
-    reviewedBy: adminId,
-    rejectionReason: null,
-  });
-
-  await sendVerificationApproved(landlordId);
-}
-
-export async function rejectVerification(
-  landlordId: string,
-  adminId: string,
-  reason: string
-): Promise<void> {
-  const current = await getVerificationStatus(landlordId);
-  if (!current) return;
-
-  await upsertVerificationRecord({
-    ...current,
-    status: 'rejected',
-    reviewedAt: new Date().toISOString(),
-    reviewedBy: adminId,
-    rejectionReason: reason,
-  });
-
-  await sendVerificationRejected(landlordId, reason);
-}
 
 export interface AdminStats {
   pendingCount: number;
   approvedToday: number;
   rejectedToday: number;
   totalVerified: number;
+  totalProperties: number;
+  totalUsers: number;
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
-  const records = await getAllVerificationRecords();
-  const today = new Date().toDateString();
+  const res = await api.get<{ success: boolean; data: AdminStats }>('/admin/stats/');
+  return res.data;
+}
 
-  return {
-    pendingCount: records.filter((r) => r.status === 'pending').length,
-    approvedToday: records.filter((r) => r.status === 'verified' && r.reviewedAt && new Date(r.reviewedAt).toDateString() === today).length,
-    rejectedToday: records.filter((r) => r.status === 'rejected' && r.reviewedAt && new Date(r.reviewedAt).toDateString() === today).length,
-    totalVerified: records.filter((r) => r.status === 'verified').length,
-  };
+interface PaginatedVerifications {
+  results: VerificationRecord[];
+  count: number;
+  next: string | null;
+}
+
+export async function getAllVerifications(
+  filter?: VerificationStatus
+): Promise<VerificationRecord[]> {
+  const params: Record<string, any> = { pageSize: 100 };
+  if (filter) params.status = filter;
+  const res = await api.get<PaginatedVerifications>('/admin/verifications/', params);
+  return res.results || [];
+}
+
+export async function getPendingVerifications(): Promise<VerificationRecord[]> {
+  return getAllVerifications('pending');
+}
+
+export async function getVerificationRecord(landlordId: string): Promise<VerificationRecord | null> {
+  try {
+    const res = await api.get<{ success: boolean; data: VerificationRecord }>(`/admin/verifications/${landlordId}/`);
+    return res.data ?? res;
+  } catch (err: any) {
+    if (err.status === 404) return null;
+    throw err;
+  }
+}
+
+export async function approveVerification(landlordId: string): Promise<void> {
+  await api.post(`/admin/verifications/${landlordId}/approve/`);
+}
+
+export async function rejectVerification(
+  landlordId: string,
+  reason: string
+): Promise<void> {
+  await api.post(`/admin/verifications/${landlordId}/reject/`, { reason });
 }

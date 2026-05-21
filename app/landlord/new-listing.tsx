@@ -117,67 +117,62 @@ export default function NewListingScreen() {
     try {
       const propertyType = PROPERTY_TYPE_MAP[form.propertyType] ?? 'house';
       const parkingSpaces = Number(form.parking || '0');
-      const property: Property = {
-        id: `custom_${Date.now()}`,
-        title: `${form.bedrooms}-Bed ${form.propertyType} in ${form.suburb}`,
-        suburb: form.suburb.trim(),
-        city: form.city.trim(),
-        address: `${form.suburb.trim()}, ${form.city.trim()}`,
-        price: Number(form.price || '0'),
-        priceUnit: 'month',
-        deposit: Number(form.deposit || '0'),
-        propertyType,
-        type: propertyType === 'studentRoom' ? 'student_room' : propertyType,
-        listingType: 'rent',
-        category: propertyType === 'studentRoom' ? 'student' : 'rent',
-        bedrooms: Number(form.bedrooms || '0'),
-        bathrooms: Number(form.bathrooms || '0'),
-        parking: parkingSpaces > 0,
-        parkingSpaces,
-        sizeSqm: Number(form.sizeSqm || '0'),
-        description: form.description.trim(),
-        images: photos,
-        amenities: {
-          wifi: form.amenities.includes('WiFi'),
-          backupPower: form.amenities.includes('Backup Power'),
-          borehole: form.amenities.includes('Borehole'),
-          generator: form.amenities.includes('Generator'),
-          security: form.amenities.includes('Security'),
-          cctv: form.amenities.includes('CCTV'),
-          pool: form.amenities.includes('Pool'),
-          gym: form.amenities.includes('Gym'),
-          parking: form.amenities.includes('Parking') || parkingSpaces > 0,
-          garden: form.amenities.includes('Garden'),
-          servantQuarters: false,
-          aircon: false,
-          petsAllowed: false,
-          furnished:
-            form.furnished === 'Furnished'
-              ? 'furnished'
-              : form.furnished === 'Unfurnished'
-                ? 'unfurnished'
-                : 'either',
-        },
-        availability: form.availability as Property['availability'],
-        featured: false,
-        verified: verificationStatus === 'verified',
-        landlord: {
-          id: userId,
-          name: form.contactName.trim() || userName || 'Landlord',
-          phone: form.contactPhone.trim(),
-          whatsapp: form.contactPhone.trim(),
-          email: form.contactEmail.trim() || userEmail || 'landlord@dreamhouse.app',
-          verified: verificationStatus === 'verified',
-        },
-        createdAt: new Date().toISOString(),
-        views: 0,
-        saves: 0,
+      
+      const formData = new FormData();
+      formData.append('title', `${form.bedrooms}-Bed ${form.propertyType} in ${form.suburb}`);
+      formData.append('suburb', form.suburb.trim());
+      formData.append('city', form.city.trim());
+      formData.append('price', String(Number(form.price || '0')));
+      formData.append('deposit', String(Number(form.deposit || '0')));
+      formData.append('property_type', propertyType === 'studentRoom' ? 'student_room' : propertyType);
+      formData.append('listing_type', 'rent');
+      formData.append('category', propertyType === 'studentRoom' ? 'student' : 'rent');
+      formData.append('bedrooms', String(Number(form.bedrooms || '0')));
+      formData.append('bathrooms', String(Number(form.bathrooms || '0')));
+      formData.append('parking_spaces', String(parkingSpaces));
+      formData.append('size_sqm', String(Number(form.sizeSqm || '0')));
+      formData.append('description', form.description.trim());
+      formData.append('availability', form.availability);
+      
+      // Contact Info - passing these as description additions or ignoring since it uses the logged in user automatically on the backend
+      
+      // Amenities as JSON string
+      const amenitiesData = {
+        wifi: form.amenities.includes('WiFi'),
+        backup_power: form.amenities.includes('Backup Power'),
+        borehole: form.amenities.includes('Borehole'),
+        generator: form.amenities.includes('Generator'),
+        security: form.amenities.includes('Security'),
+        cctv: form.amenities.includes('CCTV'),
+        pool: form.amenities.includes('Pool'),
+        gym: form.amenities.includes('Gym'),
+        parking: form.amenities.includes('Parking') || parkingSpaces > 0,
+        garden: form.amenities.includes('Garden'),
+        furnished:
+          form.furnished === 'Furnished'
+            ? 'furnished'
+            : form.furnished === 'Unfurnished'
+              ? 'unfurnished'
+              : 'either',
       };
+      formData.append('amenities', JSON.stringify(amenitiesData));
 
-      await addProperty(property);
+      // Append images
+      photos.forEach((uri, index) => {
+        const filename = uri.split('/').pop() || `photo_${index}.jpg`;
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        formData.append('uploaded_images', {
+          uri,
+          name: filename,
+          type,
+        } as any);
+      });
+
+      await addProperty(formData);
       router.replace('/landlord/dashboard');
-    } catch {
-      setSubmitError('We could not publish the listing right now. Please try again.');
+    } catch (err: any) {
+      setSubmitError(err?.message || 'We could not publish the listing right now. Please try again.');
     } finally {
       setPublishing(false);
     }

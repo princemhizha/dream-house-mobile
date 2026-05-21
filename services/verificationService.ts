@@ -1,82 +1,32 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from './api';
 import { VerificationRecord } from '../types';
 
-const STORAGE_KEY = 'dh_verification_records';
+export async function uploadIDImage(imageUri: string): Promise<string> {
+  const formData = new FormData();
+  const filename = imageUri.split('/').pop() || 'id_photo.jpg';
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-const SEEDED_RECORDS: VerificationRecord[] = [
-  {
-    landlordId: 'landlord_001',
-    idImageUrl: 'https://placehold.co/600x380',
-    status: 'pending',
-    submittedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: null,
-    reviewedBy: null,
-    rejectionReason: null,
-  },
-  {
-    landlordId: 'landlord_002',
-    idImageUrl: 'https://placehold.co/600x380',
-    status: 'pending',
-    submittedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: null,
-    reviewedBy: null,
-    rejectionReason: null,
-  },
-];
+  formData.append('id_image', {
+    uri: imageUri,
+    name: filename,
+    type,
+  } as any);
 
-async function readRecords(): Promise<VerificationRecord[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(SEEDED_RECORDS));
-    return SEEDED_RECORDS;
-  }
+  const res = await api.postForm<{ success: boolean; imageUrl: string }>('/verifications/upload-id/', formData);
+  return res.imageUrl;
+}
 
+export async function submitVerification(idImageUrl: string): Promise<void> {
+  await api.post('/verifications/', { idImageUrl });
+}
+
+export async function getVerificationStatus(): Promise<VerificationRecord | null> {
   try {
-    return JSON.parse(raw) as VerificationRecord[];
-  } catch {
-    return SEEDED_RECORDS;
+    const res = await api.get<{ success: boolean; data: VerificationRecord }>('/verifications/me/');
+    return res.data ?? res;
+  } catch (err: any) {
+    if (err.status === 404) return null;
+    throw err;
   }
-}
-
-async function writeRecords(records: VerificationRecord[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-}
-
-export async function getAllVerificationRecords(): Promise<VerificationRecord[]> {
-  return readRecords();
-}
-
-export async function upsertVerificationRecord(record: VerificationRecord): Promise<void> {
-  const records = await readRecords();
-  const next = records.filter((item) => item.landlordId !== record.landlordId);
-  next.unshift(record);
-  await writeRecords(next);
-}
-
-export async function uploadIDImage(imageUri: string, landlordId: string): Promise<string> {
-  void landlordId;
-  return imageUri;
-}
-
-export async function submitVerification(
-  landlordId: string,
-  idImageUrl: string
-): Promise<void> {
-  const now = new Date().toISOString();
-  await upsertVerificationRecord({
-    landlordId,
-    idImageUrl,
-    status: 'pending',
-    submittedAt: now,
-    reviewedAt: null,
-    reviewedBy: null,
-    rejectionReason: null,
-  });
-}
-
-export async function getVerificationStatus(
-  landlordId: string
-): Promise<VerificationRecord | null> {
-  const records = await readRecords();
-  return records.find((record) => record.landlordId === landlordId) ?? null;
 }

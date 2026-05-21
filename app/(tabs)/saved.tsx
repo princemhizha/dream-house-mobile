@@ -18,7 +18,6 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { mockProperties } from '../../data/mockProperties';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PropertyCard } from '../../components/property/PropertyCard';
 import { Colors } from '../../constants/colors';
@@ -27,18 +26,17 @@ import { Spacing } from '../../constants/spacing';
 import { Strings } from '../../constants/strings';
 import { useSavedStore } from '../../store/useSavedStore';
 import { usePropertyStore } from '../../store/usePropertyStore';
+import { Property } from '../../types';
 
 type TabKey = 'saved' | 'comparison';
 
 export default function SavedScreen() {
   const router = useRouter();
-  const { savedIds, toggleSave } = useSavedStore();
-  const allProperties = usePropertyStore((s) => s.allProperties);
+  const { savedIds, savedProperties, toggleSave } = useSavedStore();
   const [activeTab, setActiveTab] = useState<TabKey>('saved');
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
 
-  const savedProperties = allProperties.filter((p) => savedIds.includes(p.id));
   const comparedProperties = savedProperties.filter((property) => compareIds.includes(property.id));
 
   const toggleCompare = useCallback(
@@ -154,7 +152,7 @@ function SwipeablePropertyCard({
   isCompared,
   onToggleCompare,
 }: {
-  property: (typeof mockProperties)[0];
+  property: Property;
   onRemove: () => void;
   showCompare: boolean;
   isCompared: boolean;

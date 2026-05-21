@@ -1,6 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const STORAGE_KEY = 'dh_notifications';
+import { api } from './api';
 
 export type AppNotificationType = 'property' | 'system' | 'promo';
 
@@ -9,93 +7,71 @@ export interface AppNotification {
   type: AppNotificationType;
   title: string;
   message: string;
-  time: string;
   read: boolean;
+  createdAt: string;
+  // Computed for display
+  time: string;
 }
 
-const SEEDED_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: 'seed-1',
-    type: 'property',
-    title: 'New Match in Borrowdale',
-    message: 'A 3-bed home matching your search just listed at $1,200/mo.',
-    time: '2 min ago',
-    read: false,
-  },
-  {
-    id: 'seed-2',
-    type: 'promo',
-    title: 'Upgrade to Premium',
-    message: 'Get unlimited contact access. First month at 50% off.',
-    time: 'Yesterday',
-    read: true,
-  },
-];
-
-async function readNotifications(): Promise<AppNotification[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(SEEDED_NOTIFICATIONS));
-    return SEEDED_NOTIFICATIONS;
-  }
-
-  try {
-    return JSON.parse(raw) as AppNotification[];
-  } catch {
-    return SEEDED_NOTIFICATIONS;
-  }
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return new Date(dateStr).toLocaleDateString();
 }
 
-async function writeNotifications(notifications: AppNotification[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+interface ApiNotification {
+  id: string;
+  type: AppNotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+
+interface PaginatedResponse {
+  results: ApiNotification[];
+  count: number;
+  next: string | null;
+}
+
+function mapNotification(n: ApiNotification): AppNotification {
+  return {
+    id: String(n.id),
+    type: n.type,
+    title: n.title,
+    message: n.message,
+    read: n.read,
+    createdAt: n.createdAt,
+    time: formatRelativeTime(n.createdAt),
+  };
 }
 
 export async function getNotifications(): Promise<AppNotification[]> {
-  return readNotifications();
+  try {
+    const res = await api.get<PaginatedResponse>('/notifications/', { pageSize: 50 });
+    return (res.results || []).map(mapNotification);
+  } catch {
+    return [];
+  }
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const notifications = await readNotifications();
-  await writeNotifications(notifications.map((item) => item.id === id ? { ...item, read: true } : item));
+  await api.patch(`/notifications/${id}/read/`);
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const notifications = await readNotifications();
-  await writeNotifications(notifications.map((item) => ({ ...item, read: true })));
+  await api.post('/notifications/read-all/');
 }
 
-async function prependNotification(notification: Omit<AppNotification, 'id' | 'time' | 'read'>): Promise<void> {
-  const notifications = await readNotifications();
-  const next: AppNotification = {
-    id: `n_${Date.now()}`,
-    time: 'Just now',
-    read: false,
-    ...notification,
-  };
-  await writeNotifications([next, ...notifications]);
-}
-
-export async function requestPushPermissions(): Promise<string | null> {
-  return 'local-demo-token';
-}
-
-export async function sendVerificationApproved(landlordPushToken: string): Promise<void> {
-  void landlordPushToken;
-  await prependNotification({
-    type: 'system',
-    title: 'Identity Verified',
-    message: 'Your ID has been approved. You can now publish property listings.',
-  });
-}
-
-export async function sendVerificationRejected(
-  landlordPushToken: string,
-  reason: string
-): Promise<void> {
-  void landlordPushToken;
-  await prependNotification({
-    type: 'system',
-    title: 'Verification Needs Attention',
-    message: `Your ID submission was rejected: ${reason}`,
-  });
+export async function registerDeviceToken(token: string, platform: 'expo' | 'fcm'): Promise<void> {
+  await api.post('/notifications/device-token/', { token, platform });
 }

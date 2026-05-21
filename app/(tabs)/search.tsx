@@ -183,6 +183,11 @@ export default function SearchScreen() {
             updateCellsBatchingPeriod={50}
             initialNumToRender={6}
             windowSize={10}
+            onEndReached={() => {
+              const { hasMore, loadMore } = usePropertyStore.getState();
+              if (hasMore) loadMore();
+            }}
+            onEndReachedThreshold={0.5}
           />
         )
       ) : (

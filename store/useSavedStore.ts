@@ -1,47 +1,83 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '../services/api';
+import { Property } from '../types';
+import { mapApiProperty, ApiProperty } from './usePropertyStore';
 
-const STORAGE_KEY = 'dh_saved_properties';
 const MAX_FREE_SAVES = 5;
 
 interface SavedStore {
   savedIds: string[];
+  savedProperties: Property[];
+  isLoading: boolean;
   isSaved: (id: string) => boolean;
-  toggleSave: (id: string) => void;
-  removeAll: () => void;
+  toggleSave: (id: string) => Promise<void>;
+  removeAll: () => Promise<void>;
   loadPersistedState: () => Promise<void>;
+}
+
+interface PaginatedPropertyList {
+  results: ApiProperty[];
 }
 
 export const useSavedStore = create<SavedStore>((set, get) => ({
   savedIds: [],
+  savedProperties: [],
+  isLoading: false,
 
   isSaved: (id) => get().savedIds.includes(id),
 
-  toggleSave: (id) => {
-    const current = get().savedIds;
-    let next: string[];
-    if (current.includes(id)) {
-      next = current.filter((s) => s !== id);
+  toggleSave: async (id) => {
+    const currentlySaved = get().isSaved(id);
+
+    // Optimistic update
+    if (currentlySaved) {
+      set({
+        savedIds: get().savedIds.filter((s) => s !== id),
+        savedProperties: get().savedProperties.filter((p) => p.id !== id),
+      });
     } else {
-      next = [...current, id];
+      set({ savedIds: [...get().savedIds, id] });
     }
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    set({ savedIds: next });
+
+    try {
+      if (currentlySaved) {
+        await api.delete(`/users/me/saved-properties/${id}/`);
+      } else {
+        await api.post(`/users/me/saved-properties/${id}/`);
+      }
+    } catch (err: any) {
+      // Revert optimistic update on error
+      if (currentlySaved) {
+        set({ savedIds: [...get().savedIds, id] });
+      } else {
+        set({ savedIds: get().savedIds.filter((s) => s !== id) });
+      }
+
+      // Re-throw so UI can show the error (e.g. save limit reached)
+      throw err;
+    }
   },
 
-  removeAll: () => {
-    AsyncStorage.removeItem(STORAGE_KEY);
-    set({ savedIds: [] });
+  removeAll: async () => {
+    set({ savedIds: [], savedProperties: [] });
+    try {
+      await api.delete('/users/me/saved-properties/');
+    } catch { /* ignore */ }
   },
 
   loadPersistedState: async () => {
+    set({ isLoading: true });
     try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        set({ savedIds: JSON.parse(raw) });
-      }
+      const res = await api.get<{ success: boolean; data: ApiProperty[] }>('/users/me/saved-properties/');
+      const properties = (res.data || []).map(mapApiProperty);
+      set({
+        savedProperties: properties,
+        savedIds: properties.map((p) => p.id),
+        isLoading: false,
+      });
     } catch {
-      // use defaults
+      // User not logged in or error — use empty
+      set({ isLoading: false });
     }
   },
 }));

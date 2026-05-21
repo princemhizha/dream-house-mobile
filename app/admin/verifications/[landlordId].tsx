@@ -98,7 +98,7 @@ export default function AdminReviewScreen() {
   const handleApprove = async () => {
     setProcessing(true);
     try {
-      await approveVerification(landlordId!, adminId);
+      await approveVerification(landlordId!);
       setShowApproveSheet(false);
       router.back();
     } finally {
@@ -110,7 +110,7 @@ export default function AdminReviewScreen() {
     if (!rejectReason.trim()) return;
     setProcessing(true);
     try {
-      await rejectVerification(landlordId!, adminId, rejectReason.trim());
+      await rejectVerification(landlordId!, rejectReason.trim());
       setShowRejectSheet(false);
       router.back();
     } finally {

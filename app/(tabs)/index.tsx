@@ -1,5 +1,6 @@
-import React, { memo, useCallback, useEffect } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   ListRenderItem,
@@ -20,12 +21,6 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  getFeaturedProperties,
-  getNewlyAdded,
-  getTrending,
-  getStudentProperties,
-} from '../../data/mockProperties';
 import { PropertyCard } from '../../components/property/PropertyCard';
 import { FeaturedCard } from '../../components/property/FeaturedCard';
 import { FilterChip } from '../../components/search/FilterChip';
@@ -36,6 +31,8 @@ import { Strings } from '../../constants/strings';
 import { usePropertyStore } from '../../store/usePropertyStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Property } from '../../types';
+import { api } from '../../services/api';
+import { mapApiProperty, ApiProperty } from '../../store/usePropertyStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -52,6 +49,12 @@ export default function HomeScreen() {
   const { userName } = useAuthStore();
   const setListingType = usePropertyStore((s) => s.setListingType);
   const filters = usePropertyStore((s) => s.filters);
+
+  const [featured, setFeatured] = useState<Property[]>([]);
+  const [newlyAdded, setNewlyAdded] = useState<Property[]>([]);
+  const [trending, setTrending] = useState<Property[]>([]);
+  const [studentProps, setStudentProps] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Greeting based on time of day
   const hour = new Date().getHours();
@@ -73,6 +76,30 @@ export default function HomeScreen() {
     contentOpacity.value = withDelay(220, withTiming(1, { duration: 500, easing }));
   }, [headerOpacity, headerY, heroOpacity, heroY, contentOpacity]);
 
+  // Fetch home data from API
+  useEffect(() => {
+    const fetchHomeData = async () => {
+      setLoading(true);
+      try {
+        const [featuredRes, newRes, trendingRes, studentRes] = await Promise.all([
+          api.get<{ results: ApiProperty[] }>('/properties/', { featured: true, pageSize: 6 }, true),
+          api.get<{ results: ApiProperty[] }>('/properties/', { ordering: '-created_at', pageSize: 8 }, true),
+          api.get<{ results: ApiProperty[] }>('/properties/', { ordering: '-views', pageSize: 6 }, true),
+          api.get<{ results: ApiProperty[] }>('/properties/', { propertyType: 'student_room', pageSize: 6 }, true),
+        ]);
+        setFeatured((featuredRes.results || []).map(mapApiProperty));
+        setNewlyAdded((newRes.results || []).map(mapApiProperty));
+        setTrending((trendingRes.results || []).map(mapApiProperty));
+        setStudentProps((studentRes.results || []).map(mapApiProperty));
+      } catch {
+        // Fallback: use empty arrays
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchHomeData();
+  }, []);
+
   const headerStyle = useAnimatedStyle(() => ({
     opacity: headerOpacity.value,
     transform: [{ translateY: headerY.value }],
@@ -84,11 +111,6 @@ export default function HomeScreen() {
   const contentStyle = useAnimatedStyle(() => ({
     opacity: contentOpacity.value,
   }));
-
-  const featured = getFeaturedProperties();
-  const newlyAdded = getNewlyAdded();
-  const trending = getTrending();
-  const studentProps = getStudentProperties();
 
   const renderFeaturedItem = useCallback<ListRenderItem<Property>>(
     ({ item }) => <FeaturedCard property={item} />,

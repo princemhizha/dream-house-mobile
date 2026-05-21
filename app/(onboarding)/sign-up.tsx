@@ -97,7 +97,8 @@ function AnimatedCheckbox({
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { login, setOnboardingComplete } = useAuthStore();
+  const { register } = useAuthStore();
+  const [apiError, setApiError] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -147,11 +148,16 @@ export default function SignUpScreen() {
 
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
-    await new Promise<void>((resolve) => setTimeout(resolve, 800));
-    login(data.fullName, data.email);
-    setOnboardingComplete();
-    setSubmitting(false);
-    router.replace('/(onboarding)/plans');
+    setApiError(null);
+    try {
+      await register(data.fullName, data.email, data.password, undefined, data.phone);
+      setSubmitting(false);
+      router.replace('/(onboarding)/plans');
+    } catch (err: any) {
+      const msg = err?.data?.email?.[0] || err?.data?.detail || err?.message || 'Registration failed';
+      setApiError(msg);
+      setSubmitting(false);
+    }
   };
 
   return (

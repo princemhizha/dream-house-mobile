@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Dream House",
-    "slug": "dreamhousemobile",
+    "slug": "dream-house",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,7 +24,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.dreamhouse.mobile"
+      "package": "com.dreamhouse.mobile",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -45,6 +46,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4fa436ab-09db-4388-aec7-7e2964844108"
+      }
+    },
+    "owner": "georgemutakura"
   }
 }
